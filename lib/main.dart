@@ -69,10 +69,13 @@ class _DrawingAreaState extends State<DrawingArea> {
               });
             },
             onScaleUpdate: (details) {
-              final offset = details.localFocalPoint - _start;
               setState(() {
-                _delta = offset / _scale + _deltaPrev;
-                _scale = details.scale * _scalePrev;
+                if (details.pointerCount == 1) {
+                } else if (details.pointerCount == 2) {
+                  final offset = details.localFocalPoint - _start;
+                  _delta = offset / _scale + _deltaPrev;
+                  _scale = _scalePrev * details.scale;
+                }
               });
             },
             onScaleEnd: (details) {
@@ -86,7 +89,7 @@ class _DrawingAreaState extends State<DrawingArea> {
               height: image.height.toDouble(),
               clipBehavior: Clip.hardEdge,
               decoration: BoxDecoration(
-                color: Colors.grey,
+                color: Colors.black,
               ),
               child: Transform.translate(
                 offset: _delta,
