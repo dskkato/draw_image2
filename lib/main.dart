@@ -42,8 +42,12 @@ Future<ui.FrameInfo> _loadImage(AssetBundle bundle, String path) async {
 }
 
 class _DrawingAreaState extends State<DrawingArea> {
-  final TransformationController _transformationController =
-      TransformationController();
+  double _scale = 1.0;
+  double _scalePrev = 1.0;
+  late Offset _start;
+  Offset _delta = Offset.zero;
+  Offset _deltaPrev = Offset.zero;
+
   @override
   void initState() {
     super.initState();
@@ -58,27 +62,42 @@ class _DrawingAreaState extends State<DrawingArea> {
         Widget child;
         if (snapshot.hasData) {
           var image = snapshot.data!.image;
-          child = InteractiveViewer(
-            //boundaryMargin: const EdgeInsets.all(20.0),
-            minScale: 0.1,
-            maxScale: 5.0,
-            //clipBehavior: Clip.none,
-            child: Stack(
-              children: [
-                Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: <Color>[Colors.orange, Colors.red],
-                      stops: <double>[0.0, 1.0],
-                    ),
+          child = GestureDetector(
+            onScaleStart: (details) {
+              setState(() {
+                _start = details.localFocalPoint;
+              });
+            },
+            onScaleUpdate: (details) {
+              final offset = details.localFocalPoint - _start;
+              setState(() {
+                _delta = offset / _scale + _deltaPrev;
+                _scale = details.scale * _scalePrev;
+              });
+            },
+            onScaleEnd: (details) {
+              setState(() {
+                _scalePrev = _scale;
+                _deltaPrev = _delta;
+              });
+            },
+            child: Container(
+              width: image.width.toDouble(),
+              height: image.height.toDouble(),
+              clipBehavior: Clip.hardEdge,
+              decoration: BoxDecoration(
+                color: Colors.grey,
+              ),
+              child: Transform.translate(
+                offset: _delta,
+                child: Transform.scale(
+                  scale: _scale,
+                  origin: -_delta,
+                  child: CustomPaint(
+                    painter: DrawingPainter(image),
                   ),
                 ),
-                CustomPaint(
-                  painter: DrawingPainter(image),
-                ),
-              ],
+              ),
             ),
           );
         } else if (snapshot.hasError) {
@@ -86,7 +105,6 @@ class _DrawingAreaState extends State<DrawingArea> {
         } else {
           child = Text('waiting...');
         }
-        print('$child');
         return child;
       },
     );
@@ -94,16 +112,16 @@ class _DrawingAreaState extends State<DrawingArea> {
 }
 
 class DrawingPainter extends CustomPainter {
-  final ui.Image image;
-  DrawingPainter(this.image);
+  final ui.Image _image;
+  DrawingPainter(this._image);
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawImage(image, Offset.zero, new Paint());
+    canvas.drawImage(_image, Offset.zero, new Paint());
   }
 
   @override
   bool shouldRepaint(DrawingPainter old) {
-    return old.image != this.image;
+    return old._image != this._image;
   }
 }
