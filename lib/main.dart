@@ -1,5 +1,6 @@
-import 'dart:typed_data';
+import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' as ui;
@@ -47,10 +48,16 @@ class _DrawingAreaState extends State<DrawingArea> {
   late Offset _start;
   Offset _delta = Offset.zero;
   Offset _deltaPrev = Offset.zero;
-
+  int devicePointerCount = 0;
   @override
   void initState() {
     super.initState();
+
+    if (Platform.isIOS || Platform.isAndroid) {
+      devicePointerCount = 2;
+    } else {
+      devicePointerCount = 1;
+    }
   }
 
   @override
@@ -62,42 +69,54 @@ class _DrawingAreaState extends State<DrawingArea> {
         Widget child;
         if (snapshot.hasData) {
           var image = snapshot.data!.image;
-          child = GestureDetector(
-            onScaleStart: (details) {
-              setState(() {
-                _start = details.localFocalPoint;
-              });
+          child = Listener(
+            onPointerSignal: (pointerSignal) {
+              if (pointerSignal is PointerScrollEvent) {
+                final nextScale = _scale + 0.01 * pointerSignal.scrollDelta.dy;
+                setState(() {
+                  if (nextScale > 0.3) {
+                    _scale = nextScale;
+                    _scalePrev = _scale;
+                  }
+                });
+              } else if (pointerSignal is PointerMoveEvent) {}
             },
-            onScaleUpdate: (details) {
-              setState(() {
-                if (details.pointerCount == 1) {
-                } else if (details.pointerCount == 2) {
-                  final offset = details.localFocalPoint - _start;
-                  _delta = offset / _scale + _deltaPrev;
-                  _scale = _scalePrev * details.scale;
-                }
-              });
-            },
-            onScaleEnd: (details) {
-              setState(() {
-                _scalePrev = _scale;
-                _deltaPrev = _delta;
-              });
-            },
-            child: Container(
-              width: image.width.toDouble(),
-              height: image.height.toDouble(),
-              clipBehavior: Clip.hardEdge,
-              decoration: BoxDecoration(
-                color: Colors.black,
-              ),
-              child: Transform.translate(
-                offset: _delta,
-                child: Transform.scale(
-                  scale: _scale,
-                  origin: -_delta,
-                  child: CustomPaint(
-                    painter: DrawingPainter(image),
+            child: GestureDetector(
+              onScaleStart: (details) {
+                setState(() {
+                  _start = details.localFocalPoint;
+                });
+              },
+              onScaleUpdate: (details) {
+                setState(() {
+                  if (details.pointerCount == devicePointerCount) {
+                    final offset = details.localFocalPoint - _start;
+                    _delta = offset / _scale + _deltaPrev;
+                    _scale = _scalePrev * details.scale;
+                  }
+                });
+              },
+              onScaleEnd: (details) {
+                setState(() {
+                  _scalePrev = _scale;
+                  _deltaPrev = _delta;
+                });
+              },
+              child: Container(
+                width: image.width.toDouble(),
+                height: image.height.toDouble(),
+                clipBehavior: Clip.hardEdge,
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                ),
+                child: Transform.translate(
+                  offset: _delta,
+                  child: Transform.scale(
+                    scale: _scale,
+                    origin: -_delta,
+                    child: CustomPaint(
+                      painter: DrawingPainter(image),
+                    ),
                   ),
                 ),
               ),
